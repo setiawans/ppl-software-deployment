@@ -148,7 +148,7 @@ jobs:
             echo "No changes to commit"
           else
             git commit -m "ci: bump image tag to ${{ steps.tag.outputs.tag }} [skip ci]"
-            git push
+            git push origin HEAD:main
           fi
 
       - name: Deploy summary
