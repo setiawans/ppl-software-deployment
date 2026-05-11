@@ -9,7 +9,7 @@ resources:
 images:
   - name: PLACEHOLDER_IMAGE
     newName: docker.io/stevensetiawankuliah/ppl-c-steven-app
-    newTag: sha-787c705
+    newTag: sha-b58d89f
 
 patches:
   - target:
