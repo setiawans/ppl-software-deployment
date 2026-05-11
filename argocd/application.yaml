@@ -18,8 +18,11 @@ spec:
       selfHeal: true
     syncOptions:
       - CreateNamespace=true
+      - RespectIgnoreDifferences=true
   ignoreDifferences:
-    - group: apps
-      kind: Deployment
+    - group: ""
+      kind: Service
+      name: ppl-app
+      namespace: ppl-app
       jsonPointers:
-        - /spec/replicas
+        - /spec/selector/color

@@ -1,0 +1,82 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-cm
+  namespace: argocd
+data:
+  resource.customizations.actions.v1_Service: |
+    discovery.lua: |
+      actions = {}
+      if obj.metadata == nil or obj.metadata.name ~= "ppl-app" then
+        return actions
+      end
+
+      local color = ""
+      if obj.spec ~= nil and obj.spec.selector ~= nil and obj.spec.selector.color ~= nil then
+        color = obj.spec.selector.color
+      end
+
+      actions["switch-to-blue"] = {["disabled"] = (color == "blue")}
+      actions["switch-to-green"] = {["disabled"] = (color == "green")}
+      return actions
+    definitions:
+      - name: switch-to-blue
+        action.lua: |
+          if obj.spec == nil then
+            obj.spec = {}
+          end
+          if obj.spec.selector == nil then
+            obj.spec.selector = {}
+          end
+          obj.spec.selector["app"] = "ppl-app"
+          obj.spec.selector["color"] = "blue"
+          return obj
+      - name: switch-to-green
+        action.lua: |
+          if obj.spec == nil then
+            obj.spec = {}
+          end
+          if obj.spec.selector == nil then
+            obj.spec.selector = {}
+          end
+          obj.spec.selector["app"] = "ppl-app"
+          obj.spec.selector["color"] = "green"
+          return obj
+  resource.customizations.actions.Service: |
+    discovery.lua: |
+      actions = {}
+      if obj.metadata == nil or obj.metadata.name ~= "ppl-app" then
+        return actions
+      end
+
+      local color = ""
+      if obj.spec ~= nil and obj.spec.selector ~= nil and obj.spec.selector.color ~= nil then
+        color = obj.spec.selector.color
+      end
+
+      actions["switch-to-blue"] = {["disabled"] = (color == "blue")}
+      actions["switch-to-green"] = {["disabled"] = (color == "green")}
+      return actions
+    definitions:
+      - name: switch-to-blue
+        action.lua: |
+          if obj.spec == nil then
+            obj.spec = {}
+          end
+          if obj.spec.selector == nil then
+            obj.spec.selector = {}
+          end
+          obj.spec.selector["app"] = "ppl-app"
+          obj.spec.selector["color"] = "blue"
+          return obj
+      - name: switch-to-green
+        action.lua: |
+          if obj.spec == nil then
+            obj.spec = {}
+          end
+          if obj.spec.selector == nil then
+            obj.spec.selector = {}
+          end
+          obj.spec.selector["app"] = "ppl-app"
+          obj.spec.selector["color"] = "green"
+          return obj
