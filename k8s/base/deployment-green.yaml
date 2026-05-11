@@ -19,7 +19,7 @@ spec:
     spec:
       containers:
         - name: app
-          image: docker.io/stevensetiawan1802/ppl-c-steven-app:v1.0.4
+          image: docker.io/stevensetiawankuliah/ppl-c-steven-app:v1.0.4
           ports:
             - containerPort: 8000
           env:
