@@ -1,0 +1,14 @@
+__pycache__
+*.pyc
+*.pyo
+.pytest_cache
+.git
+.gitignore
+.github
+k8s
+argocd
+docs
+*.md
+.venv
+venv
+.env

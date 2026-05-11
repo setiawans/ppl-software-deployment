@@ -1,0 +1,48 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ppl-app
+  labels:
+    app: ppl-app
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: ppl-app
+  template:
+    metadata:
+      labels:
+        app: ppl-app
+    spec:
+      containers:
+        - name: app
+          image: PLACEHOLDER_IMAGE
+          ports:
+            - containerPort: 8000
+              name: http
+          env:
+            - name: APP_VERSION
+              value: "v1.0.0"
+            - name: APP_COLOR
+              value: "blue"
+            - name: APP_ENV
+              value: "prod"
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "64Mi"
+            limits:
+              cpu: "200m"
+              memory: "128Mi"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 2
+            periodSeconds: 5
