@@ -159,7 +159,7 @@ jobs:
           echo "- **Argo CD will auto-sync** within ~3 minutes." >> $GITHUB_STEP_SUMMARY
           echo "- **Monitor:** Argo CD UI → ppl-app application" >> $GITHUB_STEP_SUMMARY
 
-release-notes:
+  release-notes:
     name: Release Notes
     needs: deploy
     runs-on: ubuntu-latest
