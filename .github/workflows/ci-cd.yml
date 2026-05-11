@@ -13,6 +13,10 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: deploy-main
+  cancel-in-progress: false
+
 jobs:
   test:
     name: Test & Lint
@@ -109,10 +113,12 @@ jobs:
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
     steps:
-      - name: Checkout code
+      - name: Checkout main branch
         uses: actions/checkout@v4
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
+          ref: main
+          fetch-depth: 0
 
       - name: Determine new tag
         id: tag
@@ -127,10 +133,8 @@ jobs:
 
       - name: Update kustomization image tag & APP_VERSION
         run: |
-          # Update image tag
           sed -i "s|newTag: .*|newTag: ${{ steps.tag.outputs.tag }}|" k8s/overlays/prod/kustomization.yaml
 
-          # Kalau ini release tag (v*), update APP_VERSION juga
           if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
             VERSION="${GITHUB_REF#refs/tags/}"
             sed -i "s|value: \"v[0-9]*\.[0-9]*\.[0-9]*\"|value: \"${VERSION}\"|" k8s/overlays/prod/kustomization.yaml
@@ -143,6 +147,9 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git pull --rebase origin main
+
           git add k8s/overlays/prod/kustomization.yaml
           if git diff --staged --quiet; then
             echo "No changes to commit"
