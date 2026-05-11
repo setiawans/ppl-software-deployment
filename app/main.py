@@ -2,6 +2,7 @@
 PPL C - Steven Setiawan
 Minimal FastAPI app for deployment PoC.
 """
+
 import os
 from fastapi import FastAPI
 
