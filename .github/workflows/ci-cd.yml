@@ -120,6 +120,10 @@ jobs:
           ref: main
           fetch-depth: 0
 
+      - name: Sync latest main
+        run: |
+          git pull --rebase origin main
+
       - name: Determine new tag
         id: tag
         run: |
@@ -140,15 +144,10 @@ jobs:
             sed -i "s|value: \"v[0-9]*\.[0-9]*\.[0-9]*\"|value: \"${VERSION}\"|" k8s/overlays/prod/kustomization.yaml
           fi
 
-          echo "=== Updated kustomization.yaml ==="
-          cat k8s/overlays/prod/kustomization.yaml
-
       - name: Commit and push changes
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-
-          git pull --rebase origin main
 
           git add k8s/overlays/prod/kustomization.yaml
           if git diff --staged --quiet; then
