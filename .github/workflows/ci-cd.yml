@@ -1,0 +1,152 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - 'v*'
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  test:
+    name: Test & Lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          pip install -r app/requirements.txt
+          pip install pytest httpx ruff
+
+      - name: Run ruff lint
+        run: ruff check app/
+
+      - name: Run ruff format check
+        run: ruff format --check app/
+
+      - name: Run pytest
+        run: pytest -v
+
+      - name: Test summary
+        if: always()
+        run: |
+          echo "## ✅ Test & Lint Report" >> $GITHUB_STEP_SUMMARY
+          echo "- **Status:** ${{ job.status }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Commit:** \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Trigger:** ${{ github.event_name }}" >> $GITHUB_STEP_SUMMARY
+
+  build-and-push:
+    name: Build & Push Image
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.event_name != 'pull_request'
+    outputs:
+      image_tag: ${{ steps.meta.outputs.version }}
+      image_digest: ${{ steps.build.outputs.digest }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ secrets.DOCKERHUB_USERNAME }}/ppl-c-steven-app
+          tags: |
+            type=ref,event=branch
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=sha,prefix=sha-,format=short
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and push
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build summary
+        run: |
+          echo "## 🐳 Build & Push Report" >> $GITHUB_STEP_SUMMARY
+          echo "- **Image:** \`${{ secrets.DOCKERHUB_USERNAME }}/ppl-c-steven-app\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Digest:** \`${{ steps.build.outputs.digest }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Tags pushed:**" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "${{ steps.meta.outputs.tags }}" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+  deploy:
+    name: Update Manifest (GitOps)
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Determine new tag
+        id: tag
+        run: |
+          if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
+            TAG="${GITHUB_REF#refs/tags/}"
+          else
+            TAG="sha-$(echo ${{ github.sha }} | cut -c1-7)"
+          fi
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+          echo "Will update manifest to use tag: $TAG"
+
+      - name: Update kustomization image tag
+        run: |
+          sed -i "s|newTag: .*|newTag: ${{ steps.tag.outputs.tag }}|" k8s/overlays/prod/kustomization.yaml
+          echo "=== Updated kustomization.yaml ==="
+          cat k8s/overlays/prod/kustomization.yaml
+
+      - name: Commit and push changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add k8s/overlays/prod/kustomization.yaml
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "ci: bump image tag to ${{ steps.tag.outputs.tag }} [skip ci]"
+            git push
+          fi
+
+      - name: Deploy summary
+        run: |
+          echo "## 🚀 Deployment Report (GitOps)" >> $GITHUB_STEP_SUMMARY
+          echo "- **New tag:** \`${{ steps.tag.outputs.tag }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Manifest updated:** \`k8s/overlays/prod/kustomization.yaml\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Argo CD will auto-sync** within ~3 minutes." >> $GITHUB_STEP_SUMMARY
+          echo "- **Monitor:** Argo CD UI → ppl-app application" >> $GITHUB_STEP_SUMMARY
