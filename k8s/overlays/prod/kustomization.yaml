@@ -9,4 +9,13 @@ resources:
 images:
   - name: PLACEHOLDER_IMAGE
     newName: docker.io/stevensetiawankuliah/ppl-c-steven-app
-    newTag: sha-b42248e
+    newTag: latest
+
+patches:
+  - target:
+      kind: Deployment
+      name: ppl-app
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/env/0/value
+        value: "v1.0.0"

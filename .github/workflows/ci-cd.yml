@@ -125,9 +125,17 @@ jobs:
           echo "tag=$TAG" >> $GITHUB_OUTPUT
           echo "Will update manifest to use tag: $TAG"
 
-      - name: Update kustomization image tag
+      - name: Update kustomization image tag & APP_VERSION
         run: |
+          # Update image tag
           sed -i "s|newTag: .*|newTag: ${{ steps.tag.outputs.tag }}|" k8s/overlays/prod/kustomization.yaml
+
+          # Kalau ini release tag (v*), update APP_VERSION juga
+          if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
+            VERSION="${GITHUB_REF#refs/tags/}"
+            sed -i "s|value: \"v[0-9]*\.[0-9]*\.[0-9]*\"|value: \"${VERSION}\"|" k8s/overlays/prod/kustomization.yaml
+          fi
+
           echo "=== Updated kustomization.yaml ==="
           cat k8s/overlays/prod/kustomization.yaml
 
@@ -150,3 +158,43 @@ jobs:
           echo "- **Manifest updated:** \`k8s/overlays/prod/kustomization.yaml\`" >> $GITHUB_STEP_SUMMARY
           echo "- **Argo CD will auto-sync** within ~3 minutes." >> $GITHUB_STEP_SUMMARY
           echo "- **Monitor:** Argo CD UI → ppl-app application" >> $GITHUB_STEP_SUMMARY
+
+release-notes:
+    name: Release Notes
+    needs: deploy
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Generate release notes
+        run: |
+          TAG="${GITHUB_REF#refs/tags/}"
+          PREV_TAG=$(git tag --sort=-creatordate | grep -v "^${TAG}$" | head -1)
+
+          echo "## 📦 Release ${TAG}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Date:** $(date -u +'%Y-%m-%d %H:%M UTC')" >> $GITHUB_STEP_SUMMARY
+          echo "- **Commit:** \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Image:** \`docker.io/${{ secrets.DOCKERHUB_USERNAME }}/ppl-c-steven-app:${TAG}\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ -n "$PREV_TAG" ]; then
+            echo "### 🔄 Changes since ${PREV_TAG}" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            git log ${PREV_TAG}..${TAG} --pretty=format:"- %s (%h)" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+
+            COMMIT_COUNT=$(git rev-list ${PREV_TAG}..${TAG} --count)
+            DAYS_SINCE=$(( ( $(date -d "$(git log -1 --format=%ai ${TAG})" +%s) - $(date -d "$(git log -1 --format=%ai ${PREV_TAG})" +%s) ) / 86400 ))
+
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### 📊 Release Metrics" >> $GITHUB_STEP_SUMMARY
+            echo "- **Commits since last release:** ${COMMIT_COUNT}" >> $GITHUB_STEP_SUMMARY
+            echo "- **Days since last release:** ${DAYS_SINCE}" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### 🎉 Initial release" >> $GITHUB_STEP_SUMMARY
+          fi
