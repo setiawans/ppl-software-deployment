@@ -22,7 +22,6 @@ def root():
         "environment": APP_ENV,
     }
 
-
 @app.get("/health")
 def health():
     """Liveness & readiness probe endpoint buat Kubernetes."""
