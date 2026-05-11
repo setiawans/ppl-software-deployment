@@ -14,8 +14,24 @@ images:
 patches:
   - target:
       kind: Deployment
-      name: ppl-app
+      name: ppl-app-blue
     patch: |-
       - op: replace
         path: /spec/template/spec/containers/0/env/0/value
         value: "v1.0.0"
+
+  - target:
+      kind: Deployment
+      name: ppl-app-green
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/env/0/value
+        value: "v1.0.0"
+
+  - target:
+      kind: Service
+      name: ppl-app
+    patch: |-
+      - op: replace
+        path: /spec/selector/color
+        value: blue

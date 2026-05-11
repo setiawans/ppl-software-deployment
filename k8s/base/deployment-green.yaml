@@ -1,0 +1,31 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ppl-app-green
+  labels:
+    app: ppl-app
+    color: green
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: ppl-app
+      color: green
+  template:
+    metadata:
+      labels:
+        app: ppl-app
+        color: green
+    spec:
+      containers:
+        - name: app
+          image: docker.io/stevensetiawan1802/ppl-c-steven-app:v1.0.2
+          ports:
+            - containerPort: 8000
+          env:
+            - name: APP_VERSION
+              value: "v1.0.2"
+            - name: APP_COLOR
+              value: "green"
+            - name: APP_ENV
+              value: "prod"
